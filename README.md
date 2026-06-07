@@ -10,8 +10,7 @@ Facebook's web client makes all Marketplace requests as `POST /api/graphql/` wit
 
 ## Prerequisites
 
-- **macOS** (cookie extraction uses Keychain)
-- **Google Chrome** with an active Facebook login
+- **Google Chrome** with an active Facebook login for local cookie extraction, or exported Facebook cookies for server deployments
 - **Node.js** 20+
 
 ## Installation
@@ -98,7 +97,49 @@ Delete a saved monitor.
 
 | Env Variable | Default | Description |
 |-------------|---------|-------------|
+| `MCP_TRANSPORT` | `stdio` | Use `stdio` for local MCP clients or `http` for remote/Dokploy deployments |
+| `PORT` | `3000` | HTTP port when `MCP_TRANSPORT=http` |
+| `HOST` | `0.0.0.0` | HTTP bind host when `MCP_TRANSPORT=http` |
+| `MCP_HTTP_ENDPOINT` | `/mcp` | Streamable HTTP MCP endpoint |
+| `MCP_HTTP_BEARER_TOKEN` | unset | Bearer token required by HTTP MCP requests |
+| `ALLOW_UNAUTHENTICATED_HTTP` | unset | Set to `true` only for local HTTP testing without a bearer token |
+| `FACEBOOK_COOKIE_HEADER` | unset | Raw Facebook `Cookie` header, preferred for Docker/Dokploy |
+| `FACEBOOK_COOKIE_HEADER_FILE` | unset | File containing the raw Facebook `Cookie` header |
+| `FACEBOOK_COOKIES` | unset | JSON array of cookies with `name` and `value` fields |
+| `FACEBOOK_COOKIES_FILE` | unset | File containing the JSON cookie array |
 | `CHROME_PROFILE` | `Default` | Chrome profile directory name |
+| `MAX_REQUESTS_PER_MINUTE` | `3` | Client-side Facebook request limit |
+| `FB_MARKETPLACE_STORAGE_DIR` | `~/.fb-marketplace` | Directory for saved monitor state |
+
+Cookie env vars take precedence over local Chrome extraction. This is the deployment-friendly path because Chrome profile cookies are encrypted by the source machine's OS/keychain and generally do not survive being copied into a Linux container.
+
+## Dokploy / Docker
+
+This repo includes a `Dockerfile` and `compose.yaml` for Dokploy compose deployments. Set these Dokploy environment variables:
+
+```bash
+MCP_HTTP_BEARER_TOKEN=<long random token>
+FACEBOOK_COOKIE_HEADER='c_user=...; xs=...; fr=...; datr=...'
+MAX_REQUESTS_PER_MINUTE=3
+```
+
+Deploy the compose service and point MCP clients at:
+
+```text
+https://<your-dokploy-domain>/mcp
+```
+
+Clients should send:
+
+```text
+Authorization: Bearer <MCP_HTTP_BEARER_TOKEN>
+```
+
+The service also exposes `GET /healthz` for Dokploy health checks.
+
+### Getting Cookies
+
+The simplest way is to open Facebook Marketplace in a logged-in browser, copy the request's raw `Cookie` header for `www.facebook.com`, and set it as `FACEBOOK_COOKIE_HEADER`. The required cookie set changes over time, but `c_user` and `xs` must be present or the server will reject the session before calling Facebook.
 
 ## Updating GraphQL Queries
 

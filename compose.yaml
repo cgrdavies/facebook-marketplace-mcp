@@ -1,0 +1,21 @@
+services:
+  facebook-marketplace-mcp:
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      MCP_TRANSPORT: http
+      HOST: 0.0.0.0
+      PORT: 3000
+      MCP_HTTP_ENDPOINT: /mcp
+      MCP_HTTP_BEARER_TOKEN: ${MCP_HTTP_BEARER_TOKEN:?MCP_HTTP_BEARER_TOKEN is required}
+      FACEBOOK_COOKIE_HEADER: ${FACEBOOK_COOKIE_HEADER:?FACEBOOK_COOKIE_HEADER is required}
+      MAX_REQUESTS_PER_MINUTE: ${MAX_REQUESTS_PER_MINUTE:-3}
+      FB_MARKETPLACE_STORAGE_DIR: /data
+    volumes:
+      - facebook-marketplace-data:/data
+
+volumes:
+  facebook-marketplace-data:

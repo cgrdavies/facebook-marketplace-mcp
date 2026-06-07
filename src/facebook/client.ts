@@ -6,6 +6,7 @@ import type {
 } from "./types.js";
 import {
   extractChromeCookies,
+  loadConfiguredCookies,
   cookiesToHeader,
   getCookieValue,
 } from "./auth.js";
@@ -60,18 +61,20 @@ export class FacebookClient {
   }
 
   async initSession(): Promise<FacebookSession> {
-    const cookies = extractChromeCookies("facebook.com", this.chromeProfile);
+    const cookies =
+      loadConfiguredCookies() ??
+      extractChromeCookies("facebook.com", this.chromeProfile);
 
     if (cookies.length === 0) {
       throw new Error(
-        "No Facebook cookies found in Chrome. Make sure you're logged into Facebook in Chrome."
+        "No Facebook cookies found. Set FACEBOOK_COOKIE_HEADER or FACEBOOK_COOKIES, or log into Facebook in Chrome locally."
       );
     }
 
     const userId = getCookieValue(cookies, "c_user");
     if (!userId) {
       throw new Error(
-        "No c_user cookie found. Make sure you're logged into Facebook in Chrome."
+        "No c_user cookie found. Refresh your Facebook cookies and include the logged-in session cookies."
       );
     }
 

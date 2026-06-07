@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { execSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
+import fs from "node:fs";
 import Database from "better-sqlite3";
 import type { FacebookCookie } from "./types.js";
 
@@ -9,6 +10,77 @@ const CHROME_SALT = "saltysalt";
 const CHROME_ITERATIONS = 1003;
 const CHROME_KEY_LENGTH = 16;
 const CHROME_IV = Buffer.alloc(16, " ");
+
+function readSecret(value?: string, filePath?: string): string | undefined {
+  if (value) return value;
+  if (!filePath) return undefined;
+  return fs.readFileSync(filePath, "utf-8").trim();
+}
+
+function cookiesFromHeader(cookieHeader: string): FacebookCookie[] {
+  return cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const equals = part.indexOf("=");
+      const name = equals === -1 ? part : part.slice(0, equals);
+      const value = equals === -1 ? "" : part.slice(equals + 1);
+
+      return {
+        host: ".facebook.com",
+        name,
+        value,
+        path: "/",
+        expires: 0,
+        secure: true,
+        httpOnly: true,
+      };
+    });
+}
+
+function parseCookiesJson(json: string): FacebookCookie[] {
+  const parsed = JSON.parse(json) as Array<Partial<FacebookCookie>>;
+  if (!Array.isArray(parsed)) {
+    throw new Error("FACEBOOK_COOKIES must be a JSON array.");
+  }
+
+  return parsed.map((cookie) => {
+    if (!cookie.name || typeof cookie.value !== "string") {
+      throw new Error("Each Facebook cookie must include name and value.");
+    }
+
+    return {
+      host: cookie.host ?? ".facebook.com",
+      name: cookie.name,
+      value: cookie.value,
+      path: cookie.path ?? "/",
+      expires: cookie.expires ?? 0,
+      secure: cookie.secure ?? true,
+      httpOnly: cookie.httpOnly ?? true,
+    };
+  });
+}
+
+export function loadConfiguredCookies(): FacebookCookie[] | null {
+  const cookieHeader = readSecret(
+    process.env.FACEBOOK_COOKIE_HEADER,
+    process.env.FACEBOOK_COOKIE_HEADER_FILE
+  );
+  if (cookieHeader) {
+    return cookiesFromHeader(cookieHeader);
+  }
+
+  const cookiesJson = readSecret(
+    process.env.FACEBOOK_COOKIES,
+    process.env.FACEBOOK_COOKIES_FILE
+  );
+  if (cookiesJson) {
+    return parseCookiesJson(cookiesJson);
+  }
+
+  return null;
+}
 
 function getChromePassword(): string {
   try {
