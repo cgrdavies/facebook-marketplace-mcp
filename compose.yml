@@ -3,8 +3,8 @@ services:
     build:
       context: .
     restart: unless-stopped
-    ports:
-      - "${PORT:-3000}:3000"
+    expose:
+      - "3000"
     environment:
       MCP_TRANSPORT: http
       HOST: 0.0.0.0
@@ -16,6 +16,12 @@ services:
       FB_MARKETPLACE_STORAGE_DIR: /data
     volumes:
       - facebook-marketplace-data:/data
+    networks:
+      - dokploy-network
 
 volumes:
   facebook-marketplace-data:
+
+networks:
+  dokploy-network:
+    external: true
